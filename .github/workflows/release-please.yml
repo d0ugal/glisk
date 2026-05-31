@@ -1,0 +1,73 @@
+name: Release Please
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.RELEASE_TOKEN }}
+
+    - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+      id: release_please
+      with:
+        release-type: go
+        path: .
+        token: ${{ secrets.RELEASE_TOKEN }}
+        target-branch: main
+        fork: false
+
+    # Build and push Docker image
+    - name: Set up Docker Buildx
+      if: steps.release_please.outputs.release_created == 'true'
+      uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+
+    - name: Log in to GHCR
+      if: steps.release_please.outputs.release_created == 'true'
+      uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata
+      if: steps.release_please.outputs.release_created == 'true'
+      id: meta
+      uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          ${{ steps.release_please.outputs.tag_name }}
+          latest
+
+    - name: Build and push Docker image
+      if: steps.release_please.outputs.release_created == 'true'
+      uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=release-${{ steps.release_please.outputs.tag_name }}
+        cache-to: type=gha,mode=max,scope=release-${{ steps.release_please.outputs.tag_name }}
+        build-args: |
+          VERSION=${{ steps.release_please.outputs.tag_name }}
+          COMMIT=${{ github.sha }}
+          BUILD_DATE=${{ github.event.head_commit.timestamp }}

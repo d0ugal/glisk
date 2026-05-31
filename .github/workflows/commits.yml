@@ -1,0 +1,15 @@
+name: Commits
+
+on:
+  pull_request:
+
+jobs:
+  commitsar:
+    name: Conventional commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - uses: aevea/commitsar@909c3ab676c9af63cb84f2e38f395c7e89829b04 # v1.0.3
