@@ -86,11 +86,11 @@ body {
     letter-spacing: -0.02em;
     margin: 0;
     line-height: 1;
-}
-.brand h1 span {
-    font-weight: 600;
-    font-style: italic;
-    color: var(--accent);
+    /* Warm metallic-amber gradient (light top → deep bottom) — the "gleam". */
+    background: linear-gradient(180deg, #f6d79a 0%, var(--accent) 55%, #cf8f4a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 .brand p {
     margin: 0.35rem 0 0;

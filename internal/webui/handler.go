@@ -342,8 +342,11 @@ h1 {
   font-weight: 300;
   font-size: 2rem;
   letter-spacing: -0.02em;
+  background: linear-gradient(180deg, #f6d79a 0%, #e8b76a 55%, #cf8f4a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
-h1 span { font-weight: 600; font-style: italic; color: #e8b76a; }
 p.sub {
   color: #5f5c57;
   font-size: 0.72rem;
@@ -383,7 +386,7 @@ button:hover { background: rgba(232,183,106,0.26); }
 </head>
 <body>
 <form class="card" method="post" action="/login">
-  <h1>gl<span>isk</span></h1>
+  <h1>glisk</h1>
   <p class="sub">a glance at your disk</p>
   <!--ERR-->
   <input type="password" name="password" placeholder="password" autofocus autocomplete="current-password">
