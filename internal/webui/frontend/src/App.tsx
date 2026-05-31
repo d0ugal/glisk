@@ -156,9 +156,7 @@ export function App() {
             <div className="grain" aria-hidden />
             <header className="topbar">
                 <div className="brand">
-                    <h1>
-                        gl<span>isk</span>
-                    </h1>
+                    <h1>glisk</h1>
                     <p>a glance at your disk</p>
                 </div>
 
