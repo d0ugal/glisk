@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/d0ugal/glisk/compare/v0.1.0...v0.1.1) (2026-05-31)
+
+
+### Bug Fixes
+
+* never apply EXCLUDE to the scan root itself ([25d78aa](https://github.com/d0ugal/glisk/commit/25d78aa8c91f0425527816078813b9bf6f08a758))
+
 ## [0.1.0](https://github.com/d0ugal/glisk/compare/v0.0.2...v0.1.0) (2026-05-31)
 
 
