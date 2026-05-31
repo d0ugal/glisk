@@ -23,6 +23,7 @@ type Manager struct {
 // gate into each so only one volume walks at a time.
 func NewManager(opts []Options) *Manager {
 	gate := &sync.Mutex{}
+
 	m := &Manager{byID: make(map[string]*Scanner, len(opts))}
 	for _, o := range opts {
 		o.ScanGate = gate
@@ -30,6 +31,7 @@ func NewManager(opts []Options) *Manager {
 		m.order = append(m.order, s)
 		m.byID[s.ID()] = s
 	}
+
 	return m
 }
 
@@ -46,6 +48,7 @@ func (m *Manager) Volumes() []VolumeInfo {
 	for _, s := range m.order {
 		out = append(out, VolumeInfo{ID: s.ID(), Label: s.Label(), Status: s.Status()})
 	}
+
 	return out
 }
 
@@ -60,5 +63,6 @@ func (m *Manager) Default() string {
 	if len(m.order) == 0 {
 		return ""
 	}
+
 	return m.order[0].ID()
 }

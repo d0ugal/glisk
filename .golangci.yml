@@ -50,6 +50,7 @@ linters:
       excludes:
         - G204  # Subprocess launched with variable - inputs are validated and sanitized
         - G304  # Potential file inclusion via variable - path is validated and comes from trusted config
+        - G124  # Cookie without Secure - glisk is served over plain HTTP on trusted LANs
     dupl:
       # Set threshold for duplicate code detection (default is 150 tokens)
       threshold: 100

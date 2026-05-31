@@ -18,21 +18,26 @@ func TestStartScanAndCacheReload(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := New(Options{Root: root, DisplayRoot: "/v", CachePath: cache})
 	s.Start(ctx)
+
 	if !s.Trigger() {
 		t.Fatal("Trigger returned false")
 	}
 
 	deadline := time.Now().Add(5 * time.Second)
+
 	for {
 		st := s.Status()
 		if st.HasData && !st.Scanning {
 			break
 		}
+
 		if time.Now().After(deadline) {
 			t.Fatal("scan did not finish in time")
 		}
+
 		time.Sleep(20 * time.Millisecond)
 	}
+
 	cancel()
 
 	if r := s.Result(); r.Tree == nil || r.Status.TotalBytes != 500 {
@@ -42,8 +47,10 @@ func TestStartScanAndCacheReload(t *testing.T) {
 	// A new scanner over the same cache should load it on Start.
 	ctx2, cancel2 := context.WithCancel(context.Background())
 	defer cancel2()
+
 	s2 := New(Options{Root: root, DisplayRoot: "/v", CachePath: cache})
 	s2.Start(ctx2)
+
 	if st := s2.Status(); !st.HasData || st.TotalBytes != 500 {
 		t.Errorf("cache not reloaded: %+v", st)
 	}
@@ -52,6 +59,7 @@ func TestStartScanAndCacheReload(t *testing.T) {
 func TestTriggerCoalescesWhileScanning(t *testing.T) {
 	s := New(Options{Root: t.TempDir()})
 	s.scanning.Store(true)
+
 	if s.Trigger() {
 		t.Error("Trigger should return false while a scan is running")
 	}
@@ -85,9 +93,11 @@ func TestRescanSubtreeErrorPaths(t *testing.T) {
 
 	// Full scan in progress → rejected.
 	s.scanning.Store(true)
+
 	if err := s.RescanSubtree(context.Background(), []string{"keep"}); err == nil {
 		t.Error("expected error while a full scan is in progress")
 	}
+
 	s.scanning.Store(false)
 }
 
@@ -100,13 +110,16 @@ func TestRescanSubtreeInsertsNewFolder(t *testing.T) {
 	// A folder created after the initial scan is absent from the tree; a
 	// targeted rescan should insert it and grow the total.
 	writeFile(t, filepath.Join(root, "fresh", "big.bin"), 9000)
+
 	if err := s.RescanSubtree(context.Background(), []string{"fresh"}); err != nil {
 		t.Fatalf("RescanSubtree: %v", err)
 	}
+
 	r := s.Result()
 	if _, n := childByName(r.Tree, "fresh"); n == nil || n.Size != 9000 {
 		t.Errorf("fresh folder not inserted correctly: %+v", n)
 	}
+
 	if r.Tree.Size != 9100 {
 		t.Errorf("root total = %d, want 9100", r.Tree.Size)
 	}
@@ -115,6 +128,7 @@ func TestRescanSubtreeInsertsNewFolder(t *testing.T) {
 func TestRescanSubtreeNoPriorScan(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "d", "a.bin"), 10)
+
 	s := New(Options{Root: root})
 	if err := s.RescanSubtree(context.Background(), []string{"d"}); err == nil {
 		t.Error("expected error when no prior scan exists")
@@ -123,9 +137,10 @@ func TestRescanSubtreeNoPriorScan(t *testing.T) {
 
 func TestLoadCacheCorrupt(t *testing.T) {
 	f := filepath.Join(t.TempDir(), "bad.json.gz")
-	if err := os.WriteFile(f, []byte("definitely not gzip"), 0o644); err != nil {
+	if err := os.WriteFile(f, []byte("definitely not gzip"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+
 	s := New(Options{CachePath: f})
 	if _, err := s.loadCache(); err == nil {
 		t.Error("expected error decoding corrupt cache")
@@ -136,14 +151,20 @@ func TestProjectSingularMoreBucket(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "big"), 10000)
 	writeFile(t, filepath.Join(root, "small"), 5)
-	tree, _, _, _ := buildTree(t, root, Options{TopK: 1, MinFraction: 0})
+
+	tree, total, _, _ := buildTree(t, root, Options{TopK: 1, MinFraction: 0})
+	if total != 10005 {
+		t.Fatalf("total = %d, want 10005", total)
+	}
 
 	var bucket *Node
+
 	for _, c := range tree.Children {
 		if c.Name == "1 more item" {
 			bucket = c
 		}
 	}
+
 	if bucket == nil {
 		t.Fatalf("expected a '1 more item' bucket, got %+v", tree.Children)
 	}
@@ -198,6 +219,7 @@ func TestExcludedMatchesAnyGlob(t *testing.T) {
 			t.Errorf("%q should be excluded", in)
 		}
 	}
+
 	for _, in := range []string{"nas", "Media", "frigate"} {
 		if s.excluded(in) {
 			t.Errorf("%q should not be excluded", in)

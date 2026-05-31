@@ -22,6 +22,7 @@ func env(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
+
 	return def
 }
 
@@ -31,6 +32,7 @@ func envInt(key string, def int) int {
 			return n
 		}
 	}
+
 	return def
 }
 
@@ -40,6 +42,7 @@ func envFloat(key string, def float64) float64 {
 			return f
 		}
 	}
+
 	return def
 }
 
@@ -49,6 +52,7 @@ func envDuration(key string, def time.Duration) time.Duration {
 			return d
 		}
 	}
+
 	return def
 }
 
@@ -59,12 +63,15 @@ func envList(key string, def []string) []string {
 	if v == "" {
 		return def
 	}
+
 	var out []string
+
 	for _, p := range strings.Split(v, ",") {
 		if p = strings.TrimSpace(p); p != "" {
 			out = append(out, p)
 		}
 	}
+
 	return out
 }
 
@@ -79,6 +86,7 @@ func (v volumeSet) Scanner(id string) (webui.Scanner, bool) {
 	if !ok {
 		return nil, false
 	}
+
 	return s, true
 }
 
@@ -99,6 +107,7 @@ func loadOptions(logger *slog.Logger) []scan.Options {
 	cacheDir := env("CACHE_DIR", "/cache")
 
 	var optsList []scan.Options
+
 	if roots := envList("ROOTS", nil); len(roots) > 0 {
 		for _, root := range roots {
 			o := base
@@ -115,6 +124,7 @@ func loadOptions(logger *slog.Logger) []scan.Options {
 		o.CachePath = env("CACHE_PATH", filepath.Join(cacheDir, "tree.json.gz"))
 		optsList = append(optsList, o)
 	}
+
 	return optsList
 }
 
@@ -138,6 +148,7 @@ func main() {
 
 	go func() {
 		logger.Info("glisk listening", "addr", addr, "volumes", len(optsList))
+
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("http server failed", "err", err)
 			stop()
@@ -146,7 +157,9 @@ func main() {
 
 	<-ctx.Done()
 	logger.Info("shutting down")
+
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
 	_ = srv.Shutdown(shutdownCtx)
 }

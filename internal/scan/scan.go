@@ -97,21 +97,27 @@ func New(opts Options) *Scanner {
 	if opts.DisplayRoot == "" {
 		opts.DisplayRoot = opts.Root
 	}
+
 	if opts.ID == "" {
 		opts.ID = filepath.Base(opts.DisplayRoot)
 	}
+
 	if opts.TopK <= 0 {
 		opts.TopK = 24
 	}
+
 	if opts.MaxDepth <= 0 {
 		opts.MaxDepth = 14
 	}
+
 	if opts.MinFraction <= 0 {
 		opts.MinFraction = 0.0001 // 0.01%
 	}
+
 	if opts.Logger == nil {
 		opts.Logger = slog.Default()
 	}
+
 	return &Scanner{
 		opts:    opts,
 		log:     opts.Logger,
@@ -133,6 +139,7 @@ func (s *Scanner) Start(ctx context.Context) {
 		s.log.Warn("could not load cache", "err", err)
 	} else if r != nil {
 		r.Status.Scanning = false
+
 		s.mu.Lock()
 		s.result = r
 		s.mu.Unlock()
@@ -149,6 +156,7 @@ func (s *Scanner) Trigger() bool {
 	if s.scanning.Load() {
 		return false
 	}
+
 	select {
 	case s.trigger <- struct{}{}:
 		return true
@@ -160,30 +168,37 @@ func (s *Scanner) Trigger() bool {
 // Status returns a snapshot of the current state.
 func (s *Scanner) Status() Status {
 	s.mu.RLock()
+
 	var st Status
 	if s.result != nil {
 		st = s.result.Status
 	}
+
 	s.mu.RUnlock()
 
 	st.ID = s.opts.ID
 	st.Root = s.opts.DisplayRoot
+
 	st.NextScanUnix = s.nextScanUnix.Load()
 	if s.scanning.Load() {
 		st.Scanning = true
 		st.Progress = s.progress.Load()
 	}
+
 	return st
 }
 
 // Result returns the last completed scan (status + tree). Tree may be nil.
 func (s *Scanner) Result() Result {
 	s.mu.RLock()
+
 	var tree *Node
 	if s.result != nil {
 		tree = s.result.Tree
 	}
+
 	s.mu.RUnlock()
+
 	return Result{Status: s.Status(), Tree: tree}
 }
 
@@ -192,6 +207,7 @@ func (s *Scanner) worker(ctx context.Context) {
 	// Pin to one OS thread and drop its scheduling priority so the scan only
 	// uses spare CPU. setpriority on Linux acts per-thread for the caller.
 	runtime.LockOSThread()
+
 	if err := syscall.Setpriority(syscall.PRIO_PROCESS, 0, 19); err != nil {
 		s.log.Debug("could not lower scan priority", "err", err)
 	}
@@ -210,10 +226,12 @@ func (s *Scanner) worker(ctx context.Context) {
 func (s *Scanner) scheduler(ctx context.Context) {
 	for {
 		now := time.Now()
+
 		next := time.Date(now.Year(), now.Month(), now.Day(), s.opts.ScanHour, 0, 0, 0, now.Location())
 		if !next.After(now) {
 			next = next.Add(24 * time.Hour)
 		}
+
 		s.nextScanUnix.Store(next.Unix())
 		s.log.Info("next scheduled scan", "at", next.Format(time.RFC3339))
 
@@ -231,23 +249,30 @@ func (s *Scanner) scheduler(ctx context.Context) {
 func (s *Scanner) runScan(ctx context.Context) {
 	s.scanning.Store(true)
 	s.progress.Store(0)
+
 	start := time.Now()
 
 	// Serialise the heavy walk against other volumes' scans, if a gate is set.
 	if s.opts.ScanGate != nil {
 		s.opts.ScanGate.Lock()
 	}
+
 	s.log.Info("scan started", "root", s.opts.Root)
 	root, files, dirs, walkErr := s.buildRaw(ctx)
-	var total int64
-	var tree *Node
+
+	var (
+		total int64
+		tree  *Node
+	)
+
 	if root != nil {
 		total = computeSize(root)
 		tree = s.project(root, 0, int64(s.opts.MinFraction*float64(total)))
 	}
-	// Drop the raw tree promptly so steady-state memory stays small.
-	root = nil
+	// Hint the GC to reclaim the transient raw tree before the cache write so
+	// steady-state memory stays small (only the projected tree is retained).
 	runtime.GC()
+
 	if s.opts.ScanGate != nil {
 		s.opts.ScanGate.Unlock()
 	}
@@ -270,6 +295,7 @@ func (s *Scanner) runScan(ctx context.Context) {
 	if walkErr != nil {
 		st.Error = walkErr.Error()
 	}
+
 	res := &Result{Status: st, Tree: tree}
 
 	s.mu.Lock()
@@ -280,6 +306,7 @@ func (s *Scanner) runScan(ctx context.Context) {
 	if err := s.saveCache(res); err != nil {
 		s.log.Warn("could not save cache", "err", err)
 	}
+
 	s.log.Info("scan finished",
 		"files", files, "dirs", dirs, "bytes", total,
 		"duration", time.Since(start).Round(time.Millisecond))
@@ -303,12 +330,14 @@ func (s *Scanner) buildRaw(ctx context.Context) (root *rawNode, files, dirs int6
 // folder rescans pass false for snappy feedback.
 func (s *Scanner) buildRawAt(ctx context.Context, fsRoot, rootName string, throttle bool) (root *rawNode, files, dirs int64, walkErr error) {
 	root = &rawNode{name: rootName, isDir: true, children: map[string]*rawNode{}}
+
 	var count int64
 
 	walkErr = filepath.WalkDir(fsRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // skip unreadable entries, keep going
 		}
+
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -327,6 +356,7 @@ func (s *Scanner) buildRawAt(ctx context.Context, fsRoot, rootName string, throt
 		if e != nil || rel == "." {
 			return nil
 		}
+
 		parts := strings.Split(rel, string(os.PathSeparator))
 
 		cur := root
@@ -336,6 +366,7 @@ func (s *Scanner) buildRawAt(ctx context.Context, fsRoot, rootName string, throt
 				child = &rawNode{name: p, children: map[string]*rawNode{}}
 				cur.children[p] = child
 			}
+
 			last := i == len(parts)-1
 			if last {
 				if d.IsDir() {
@@ -345,16 +376,21 @@ func (s *Scanner) buildRawAt(ctx context.Context, fsRoot, rootName string, throt
 					if info, ie := d.Info(); ie == nil {
 						child.size = info.Size()
 					}
+
 					files++
 				}
 			} else {
 				child.isDir = true
 			}
+
 			cur = child
 		}
+
 		return nil
 	})
+
 	s.progress.Store(count)
+
 	return root, files, dirs, walkErr
 }
 
@@ -368,9 +404,11 @@ func (s *Scanner) RescanSubtree(ctx context.Context, segments []string) error {
 	if s.scanning.Load() {
 		return errors.New("a full scan is in progress")
 	}
+
 	if len(segments) == 0 {
 		return errors.New("no folder specified")
 	}
+
 	for _, seg := range segments {
 		if seg == "" || seg == "." || seg == ".." || strings.ContainsRune(seg, os.PathSeparator) {
 			return fmt.Errorf("invalid path segment %q", seg)
@@ -383,29 +421,36 @@ func (s *Scanner) RescanSubtree(ctx context.Context, segments []string) error {
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 		return errors.New("path escapes root")
 	}
+
 	info, err := os.Stat(fsPath)
 	if err != nil {
 		return err
 	}
+
 	if !info.IsDir() {
 		return fmt.Errorf("%s is not a directory", fsPath)
 	}
 
 	name := segments[len(segments)-1]
+
 	raw, files, dirs, walkErr := s.buildRawAt(ctx, fsPath, name, false)
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+
 	if walkErr != nil {
 		return walkErr
 	}
+
 	computeSize(raw)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	if s.result == nil || s.result.Tree == nil {
 		return errors.New("no existing scan to update; run a full scan first")
 	}
+
 	tree := s.result.Tree
 	minSize := int64(s.opts.MinFraction * float64(s.result.Status.TotalBytes))
 	node := s.project(raw, len(segments), minSize)
@@ -414,6 +459,7 @@ func (s *Scanner) RescanSubtree(ctx context.Context, segments []string) error {
 	if !ok {
 		return errors.New("folder's parent is not in the current tree")
 	}
+
 	var oldSize int64
 	if idx >= 0 {
 		oldSize = parent.Children[idx].Size
@@ -421,6 +467,7 @@ func (s *Scanner) RescanSubtree(ctx context.Context, segments []string) error {
 	} else {
 		parent.Children = append(parent.Children, node)
 	}
+
 	delta := node.Size - oldSize
 	for _, n := range chain {
 		n.Size += delta
@@ -432,8 +479,10 @@ func (s *Scanner) RescanSubtree(ctx context.Context, segments []string) error {
 	if err := s.saveCache(s.result); err != nil {
 		s.log.Warn("could not save cache after folder rescan", "err", err)
 	}
+
 	s.log.Info("folder rescan",
 		"path", strings.Join(segments, "/"), "files", files, "dirs", dirs, "bytes", node.Size)
+
 	return nil
 }
 
@@ -444,6 +493,7 @@ func childByName(n *Node, name string) (int, *Node) {
 			return i, c
 		}
 	}
+
 	return -1, nil
 }
 
@@ -454,15 +504,19 @@ func childByName(n *Node, name string) (int, *Node) {
 func locateParent(root *Node, segments []string) (parent *Node, chain []*Node, childIdx int, parentOK bool) {
 	cur := root
 	chain = []*Node{root}
+
 	for i := 0; i < len(segments)-1; i++ {
 		_, next := childByName(cur, segments[i])
 		if next == nil {
 			return nil, nil, -1, false
 		}
+
 		cur = next
 		chain = append(chain, cur)
 	}
+
 	idx, _ := childByName(cur, segments[len(segments)-1])
+
 	return cur, chain, idx, true
 }
 
@@ -473,6 +527,7 @@ func (s *Scanner) excluded(base string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -481,11 +536,14 @@ func computeSize(n *rawNode) int64 {
 	if !n.isDir {
 		return n.size
 	}
+
 	var total int64
 	for _, c := range n.children {
 		total += computeSize(c)
 	}
+
 	n.size = total
+
 	return total
 }
 
@@ -502,10 +560,14 @@ func (s *Scanner) project(n *rawNode, depth int, minSize int64) *Node {
 	for _, c := range n.children {
 		kids = append(kids, c)
 	}
+
 	sort.Slice(kids, func(i, j int) bool { return kids[i].size > kids[j].size })
 
-	var restSize int64
-	var restCount int
+	var (
+		restSize  int64
+		restCount int
+	)
+
 	for i, c := range kids {
 		if i < s.opts.TopK && c.size >= minSize {
 			node.Children = append(node.Children, s.project(c, depth+1, minSize))
@@ -514,13 +576,16 @@ func (s *Scanner) project(n *rawNode, depth int, minSize int64) *Node {
 			restCount++
 		}
 	}
+
 	if restCount > 0 {
 		label := fmt.Sprintf("%d more items", restCount)
 		if restCount == 1 {
 			label = "1 more item"
 		}
+
 		node.Children = append(node.Children, &Node{Name: label, Size: restSize})
 	}
+
 	return node
 }
 
@@ -528,25 +593,29 @@ func (s *Scanner) loadCache() (*Result, error) {
 	if s.opts.CachePath == "" {
 		return nil, nil
 	}
+
 	f, err := os.Open(s.opts.CachePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
+
 		return nil, err
 	}
-	defer f.Close()
+
+	defer func() { _ = f.Close() }()
 
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		return nil, err
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 
 	var r Result
 	if err := json.NewDecoder(gz).Decode(&r); err != nil {
 		return nil, err
 	}
+
 	return &r, nil
 }
 
@@ -554,23 +623,30 @@ func (s *Scanner) saveCache(r *Result) error {
 	if s.opts.CachePath == "" {
 		return nil
 	}
+
 	tmp := s.opts.CachePath + ".tmp"
+
 	f, err := os.Create(tmp)
 	if err != nil {
 		return err
 	}
+
 	gz := gzip.NewWriter(f)
 	if err := json.NewEncoder(gz).Encode(r); err != nil {
-		gz.Close()
-		f.Close()
+		_ = gz.Close()
+		_ = f.Close()
+
 		return err
 	}
+
 	if err := gz.Close(); err != nil {
-		f.Close()
+		_ = f.Close()
 		return err
 	}
+
 	if err := f.Close(); err != nil {
 		return err
 	}
+
 	return os.Rename(tmp, s.opts.CachePath)
 }

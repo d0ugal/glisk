@@ -59,11 +59,13 @@ func New(vols VolumeSet, log *slog.Logger) *Server {
 	if log == nil {
 		log = slog.Default()
 	}
+
 	password := os.Getenv("GLISK_PASSWORD")
 	if password == "" {
 		log.Error("GLISK_PASSWORD environment variable not set")
 		panic("GLISK_PASSWORD must be set")
 	}
+
 	log.Info("web UI authentication enabled")
 
 	s := &Server{
@@ -88,6 +90,7 @@ func New(vols VolumeSet, log *slog.Logger) *Server {
 	})
 	mux.HandleFunc("/", s.requireAuth(s.handleStatic))
 	s.mux = mux
+
 	return s
 }
 
@@ -98,11 +101,13 @@ func (s *Server) volume(w http.ResponseWriter, r *http.Request) (Scanner, bool) 
 	if id == "" {
 		id = s.vols.Default()
 	}
+
 	sc, ok := s.vols.Scanner(id)
 	if !ok {
 		http.Error(w, "unknown volume", http.StatusNotFound)
 		return nil, false
 	}
+
 	return sc, true
 }
 
@@ -122,8 +127,10 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			} else {
 				http.Redirect(w, r, "/login", http.StatusSeeOther)
 			}
+
 			return
 		}
+
 		next(w, r)
 	}
 }
@@ -131,7 +138,9 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 func (s *Server) validSession(token string) bool {
 	s.sessionMu.RLock()
 	defer s.sessionMu.RUnlock()
+
 	exp, ok := s.sessions[token]
+
 	return ok && time.Now().Before(exp)
 }
 
@@ -142,12 +151,14 @@ func (s *Server) createSession() string {
 
 	s.sessionMu.Lock()
 	defer s.sessionMu.Unlock()
+
 	s.sessions[token] = time.Now().Add(sessionDuration)
 	for t, exp := range s.sessions { // opportunistic cleanup
 		if time.Now().After(exp) {
 			delete(s.sessions, t)
 		}
 	}
+
 	return token
 }
 
@@ -163,11 +174,15 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 				SameSite: http.SameSiteLaxMode,
 			})
 			http.Redirect(w, r, "/", http.StatusSeeOther)
+
 			return
 		}
+
 		w.WriteHeader(http.StatusUnauthorized)
 	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
 	failed := r.Method == http.MethodPost
 	_, _ = w.Write([]byte(strings.Replace(loginHTML, "<!--ERR-->", loginError(failed), 1)))
 }
@@ -176,6 +191,7 @@ func loginError(failed bool) string {
 	if failed {
 		return `<p class="err">Incorrect password</p>`
 	}
+
 	return ""
 }
 
@@ -194,6 +210,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+
 	writeJSON(w, http.StatusOK, sc.Status())
 }
 
@@ -202,6 +219,7 @@ func (s *Server) handleTree(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+
 	writeJSON(w, http.StatusOK, sc.Result())
 }
 
@@ -210,10 +228,12 @@ func (s *Server) handleRescan(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
 	sc, ok := s.volume(w, r)
 	if !ok {
 		return
 	}
+
 	queued := sc.Trigger()
 	writeJSON(w, http.StatusAccepted, map[string]bool{"queued": queued})
 }
@@ -225,10 +245,12 @@ func (s *Server) handleRescanFolder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
 	sc, ok := s.volume(w, r)
 	if !ok {
 		return
 	}
+
 	var body struct {
 		Segments []string `json:"segments"`
 	}
@@ -236,10 +258,12 @@ func (s *Server) handleRescanFolder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+
 	if err := sc.RescanSubtree(r.Context(), body.Segments); err != nil {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 		return
 	}
+
 	writeJSON(w, http.StatusOK, sc.Result())
 }
 
@@ -247,9 +271,11 @@ func (s *Server) handleRescanFolder(w http.ResponseWriter, r *http.Request) {
 // dependency-free on purpose; the values mirror the scan status.
 func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+
 	vols := s.vols.Volumes()
 
 	var b strings.Builder
+
 	header := func(name, help, typ string) {
 		fmt.Fprintf(&b, "# HELP %s %s\n# TYPE %s %s\n", name, help, name, typ)
 	}
@@ -257,10 +283,12 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 		if v {
 			return 1
 		}
+
 		return 0
 	}
 	emit := func(name, help string, val func(scan.Status) any) {
 		header(name, help, "gauge")
+
 		for _, v := range vols {
 			fmt.Fprintf(&b, "%s{volume=%q} %v\n", name, v.ID, val(v.Status))
 		}
@@ -273,6 +301,7 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 	emit("glisk_next_scan_timestamp_seconds", "Unix time of the next scheduled scan.", func(s scan.Status) any { return s.NextScanUnix })
 	emit("glisk_scanning", "1 while a scan is in progress, else 0.", func(s scan.Status) any { return b01(s.Scanning) })
 	emit("glisk_has_data", "1 once at least one scan has completed.", func(s scan.Status) any { return b01(s.HasData) })
+
 	_, _ = w.Write([]byte(b.String()))
 }
 
@@ -370,9 +399,11 @@ func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	if clean == "" {
 		clean = "index.html"
 	}
+
 	if _, err := fs.Stat(frontendDist(), clean); err != nil {
 		// Not a real asset — hand back the SPA shell.
 		r.URL.Path = "/"
 	}
+
 	s.static.ServeHTTP(w, r)
 }
