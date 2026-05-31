@@ -342,7 +342,9 @@ func (s *Scanner) buildRawAt(ctx context.Context, fsRoot, rootName string, throt
 			return ctx.Err()
 		}
 
-		if d.IsDir() && s.excluded(d.Name()) {
+		// Apply EXCLUDE only to descendants, never the scan root itself — a
+		// root whose base name happens to match a glob must still be scanned.
+		if path != fsRoot && d.IsDir() && s.excluded(d.Name()) {
 			return filepath.SkipDir
 		}
 

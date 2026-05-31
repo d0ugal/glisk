@@ -212,6 +212,35 @@ func TestSaveCacheError(t *testing.T) {
 	}
 }
 
+func TestExcludeNeverSkipsTheRoot(t *testing.T) {
+	parent := t.TempDir()
+	// A scan root whose own base name matches an exclude glob.
+	scanRoot := filepath.Join(parent, "@scanme")
+	writeFile(t, filepath.Join(scanRoot, "a.bin"), 1000)
+	// A descendant that should still be excluded by the same glob.
+	writeFile(t, filepath.Join(scanRoot, "@cache", "big.bin"), 9999)
+
+	s := New(Options{ExcludeGlobs: []string{"@*"}})
+
+	raw, files, _, err := s.buildRawAt(context.Background(), scanRoot, "@scanme", false)
+	if err != nil {
+		t.Fatalf("buildRawAt: %v", err)
+	}
+
+	total := computeSize(raw)
+
+	// Root must NOT be skipped: a.bin is counted.
+	if files != 1 || total != 1000 {
+		t.Errorf("root scan: files=%d total=%d, want 1/1000 (root must not be excluded)", files, total)
+	}
+	// The descendant @cache must still be excluded.
+	for _, c := range raw.children {
+		if c.name == "@cache" {
+			t.Error("descendant @cache should have been excluded")
+		}
+	}
+}
+
 func TestExcludedMatchesAnyGlob(t *testing.T) {
 	s := New(Options{ExcludeGlobs: []string{"@*", "#recycle", "node_modules"}})
 	for _, in := range []string{"@docker", "#recycle", "node_modules"} {
