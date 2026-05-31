@@ -122,9 +122,10 @@ export const Sunburst = forwardRef<SunburstHandle, SunburstProps>(
                 .select(host)
                 .append("svg")
                 .attr("viewBox", `${-SIZE / 2} ${-SIZE / 2} ${SIZE} ${SIZE}`)
-                .attr("width", "100%")
-                .attr("height", "100%")
-                .style("max-width", `${SIZE}px`)
+                .attr("preserveAspectRatio", "xMidYMid meet")
+                // Sizing is handled in CSS (responsive square that fits the
+                // stage) so the circle's centre stays at the stage centre,
+                // where the read-out is positioned.
                 .style("font-family", "'Hanken Grotesk', sans-serif");
 
             // Liquid-jelly filter: fractal-noise turbulence displaces the arc
