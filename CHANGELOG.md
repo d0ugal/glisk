@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0](https://github.com/d0ugal/glisk/compare/v0.0.2...v0.1.0) (2026-05-31)
+
+
+### Features
+
+* metallic-amber gradient wordmark ([b78e25c](https://github.com/d0ugal/glisk/commit/b78e25c59e0a475ec2b98c25684bc92d66f4c09f))
+
 ## [0.0.2](https://github.com/d0ugal/glisk/compare/v0.0.1...v0.0.2) (2026-05-31)
 
 
