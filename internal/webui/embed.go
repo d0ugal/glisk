@@ -19,5 +19,6 @@ func frontendDist() fs.FS {
 	if err != nil {
 		panic(err) // the embed directive guarantees the path exists
 	}
+
 	return sub
 }

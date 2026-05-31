@@ -23,6 +23,7 @@ func TestManagerScansEachVolume(t *testing.T) {
 		if !ok {
 			t.Fatalf("missing scanner %q", id)
 		}
+
 		s.runScan(context.Background())
 	}
 
@@ -30,12 +31,15 @@ func TestManagerScansEachVolume(t *testing.T) {
 	if len(vols) != 2 {
 		t.Fatalf("Volumes len = %d, want 2", len(vols))
 	}
+
 	if vols[0].ID != "volA" || vols[1].ID != "volB" {
 		t.Errorf("order/ids wrong: %+v", vols)
 	}
+
 	if vols[0].Status.TotalBytes != 1000 || vols[1].Status.TotalBytes != 2000 {
 		t.Errorf("sizes wrong: %d / %d", vols[0].Status.TotalBytes, vols[1].Status.TotalBytes)
 	}
+
 	if vols[0].Status.ID != "volA" {
 		t.Errorf("status ID = %q, want volA", vols[0].Status.ID)
 	}
@@ -43,6 +47,7 @@ func TestManagerScansEachVolume(t *testing.T) {
 	if def := m.Default(); def != "volA" {
 		t.Errorf("Default = %q, want volA", def)
 	}
+
 	if _, ok := m.Scanner("nope"); ok {
 		t.Error("Scanner(nope) should be false")
 	}
@@ -54,6 +59,7 @@ func TestManagerSharesScanGate(t *testing.T) {
 		{ID: "b", Root: t.TempDir()},
 	})
 	sa, _ := m.Scanner("a")
+
 	sb, _ := m.Scanner("b")
 	if sa.opts.ScanGate == nil || sa.opts.ScanGate != sb.opts.ScanGate {
 		t.Error("expected both scanners to share one ScanGate")
