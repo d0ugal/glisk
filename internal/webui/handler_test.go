@@ -50,7 +50,7 @@ func (v fakeVolumes) Scanner(id string) (Scanner, bool) {
 
 // authReq adds a valid session cookie so a request passes requireAuth.
 func authReq(s *Server, req *http.Request) *http.Request {
-	req.AddCookie(&http.Cookie{Name: "session", Value: s.createSession()})
+	req.AddCookie(&http.Cookie{Name: "session", Value: s.createSession()}) //nolint:gosec // G124: test-only cookie, served over plain HTTP on trusted LANs
 	return req
 }
 

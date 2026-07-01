@@ -165,7 +165,7 @@ func (s *Server) createSession() string {
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		if subtle.ConstantTimeCompare([]byte(r.FormValue("password")), []byte(s.password)) == 1 {
-			http.SetCookie(w, &http.Cookie{
+			http.SetCookie(w, &http.Cookie{ //nolint:gosec // G124: served over plain HTTP on trusted LANs; Secure flag intentionally omitted
 				Name:     "session",
 				Value:    s.createSession(),
 				Path:     "/",
