@@ -1,7 +1,7 @@
 .PHONY: help build test lint clean fmt lint-only frontend dev-tag
 
 # Docker image versions
-GOLANGCI_LINT_VERSION := v2.14.0
+GOLANGCI_LINT_VERSION := v2.15.0
 
 help:
 	@echo "Available targets:"
