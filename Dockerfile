@@ -1,5 +1,5 @@
 # Frontend build stage — produces internal/webui/frontend/dist/
-FROM docker.io/library/node:24-alpine@sha256:6a1c190e17215d844926b0677f4bf87273ff7d5e54db06d3b5b5863ab0b09a3d AS frontend
+FROM docker.io/library/node:24-alpine@sha256:feb76650b7195319268c59cb2d419c732d6c499b13bf5296f16ab59eb1f0a4f3 AS frontend
 
 WORKDIR /frontend
 
