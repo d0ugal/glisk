@@ -67,6 +67,8 @@ All configuration is via environment variables.
 | `SCAN_HOUR`      | `2`                   | Local hour-of-day for the nightly scan.                        |
 | `EXCLUDE`        | `@*`                  | Comma-separated globs of directory base names to skip. The default drops Synology-style `@`-prefixed subvolumes whose reflinked contents over-report usage. |
 | `TOP_K`          | `24`                  | Max children kept per directory in the projection.             |
+| `OPEN_URL`       | —                     | Web file manager link template, e.g. `http://nas:8080/files/{vol}/{path}`. Adds "open in file manager" to the right-click menu and the inspector. `{vol}` is the volume id, `{path}` the URL-encoded folder path below the root; files open their parent folder. |
+| `OPEN_URL_<ID>`  | = `OPEN_URL`          | Per-volume override (id upper-cased, other characters as `_`, e.g. `OPEN_URL_NAS_DATA`) for file managers that name the volume differently. |
 | `MAX_DEPTH`      | `14`                  | Deepest level kept in the projection.                          |
 | `MIN_FRACTION`   | `0.0001`              | Fold children smaller than this fraction of the total.         |
 | `THROTTLE_EVERY` | `4000`                | Sleep after every N entries walked (0 disables).               |

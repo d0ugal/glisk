@@ -578,3 +578,45 @@ body {
         display: none;
     }
 }
+
+/* "open in file manager": inspector link and right-click menu */
+.open-folder {
+    margin-top: 0.5rem;
+    text-decoration: none;
+}
+.ctx-menu {
+    position: fixed;
+    z-index: 50;
+    min-width: 12rem;
+    max-width: 22rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.35rem;
+    background: var(--bg-2);
+    border: 1px solid var(--panel-line);
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+}
+.ctx-menu a {
+    padding: 0.5rem 0.7rem;
+    border-radius: 7px;
+    color: var(--accent);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.ctx-menu a:hover,
+.ctx-menu a:focus-visible {
+    background: var(--accent-soft);
+    outline: none;
+}
+.ctx-path {
+    padding: 0 0.7rem 0.35rem;
+    color: var(--ink-faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

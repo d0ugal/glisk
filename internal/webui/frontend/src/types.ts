@@ -27,5 +27,7 @@ export interface TreeResult {
 export interface VolumeInfo {
     id: string;
     label: string;
+    // File manager link template with {vol} and {path}; absent = not configured.
+    openUrl?: string;
     status: Status;
 }

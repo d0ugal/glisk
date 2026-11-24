@@ -89,6 +89,22 @@ func TestLoadOptionsRootsAndFallback(t *testing.T) {
 	}
 }
 
+func TestLoadOptionsOpenURL(t *testing.T) {
+	// OPEN_URL is shared; OPEN_URL_<ID> overrides it for one volume.
+	t.Setenv("ROOTS", "/data/storage,/data/nas_data")
+	t.Setenv("OPEN_URL", "http://fm/files/{vol}/{path}")
+	t.Setenv("OPEN_URL_NAS_DATA", "http://fm/files/nas/{path}")
+
+	opts := loadOptions(nil)
+	if opts[0].OpenURL != "http://fm/files/{vol}/{path}" {
+		t.Errorf("storage OpenURL = %q", opts[0].OpenURL)
+	}
+
+	if opts[1].OpenURL != "http://fm/files/nas/{path}" {
+		t.Errorf("nas_data OpenURL = %q", opts[1].OpenURL)
+	}
+}
+
 func TestLoadOptionsSingleFallback(t *testing.T) {
 	// No ROOTS → single-volume fallback.
 	t.Setenv("ROOTS", "")

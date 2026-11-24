@@ -14,7 +14,7 @@ func TestManagerScansEachVolume(t *testing.T) {
 
 	m := NewManager([]Options{
 		{ID: "volA", Root: rootA, DisplayRoot: "/volA"},
-		{ID: "volB", Root: rootB, DisplayRoot: "/volB"},
+		{ID: "volB", Root: rootB, DisplayRoot: "/volB", OpenURL: "http://fm/{path}"},
 	})
 
 	// Scan both directly (bypassing the scheduler).
@@ -34,6 +34,10 @@ func TestManagerScansEachVolume(t *testing.T) {
 
 	if vols[0].ID != "volA" || vols[1].ID != "volB" {
 		t.Errorf("order/ids wrong: %+v", vols)
+	}
+
+	if vols[0].OpenURL != "" || vols[1].OpenURL != "http://fm/{path}" {
+		t.Errorf("OpenURL wrong: %q / %q", vols[0].OpenURL, vols[1].OpenURL)
 	}
 
 	if vols[0].Status.TotalBytes != 1000 || vols[1].Status.TotalBytes != 2000 {

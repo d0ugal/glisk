@@ -34,6 +34,8 @@ interface SunburstProps {
     // an in-place tree update — e.g. a single-folder rescan — keeps the user
     // looking at the same folder instead of snapping back to the root.
     focusPath?: string[];
+    // Right-click on an arc. The handler decides whether to preventDefault.
+    onContextMenu?: (node: SBNode, event: MouseEvent) => void;
 }
 
 // nodeByPath descends the hierarchy following folder names.
@@ -77,7 +79,7 @@ function paintTree(root: SBNode) {
 }
 
 export const Sunburst = forwardRef<SunburstHandle, SunburstProps>(
-    function Sunburst({ data, onHover, onFocus, focusPath }, ref) {
+    function Sunburst({ data, onHover, onFocus, focusPath, onContextMenu }, ref) {
         const hostRef = useRef<HTMLDivElement>(null);
         const zoomRef = useRef<(p: SBNode, animate?: boolean) => void>(
             () => {},
@@ -86,6 +88,8 @@ export const Sunburst = forwardRef<SunburstHandle, SunburstProps>(
         // making focusPath a dependency that would force a rebuild.
         const focusPathRef = useRef(focusPath);
         focusPathRef.current = focusPath;
+        const contextMenuRef = useRef(onContextMenu);
+        contextMenuRef.current = onContextMenu;
 
         useImperativeHandle(ref, () => ({
             focusTo: (node: SBNode) => zoomRef.current(node),
@@ -210,6 +214,9 @@ export const Sunburst = forwardRef<SunburstHandle, SunburstProps>(
             });
 
             path.filter((d) => !!d.children).on("click", (_e, d) => zoom(d));
+            path.on("contextmenu", (e: MouseEvent, d) =>
+                contextMenuRef.current?.(d, e),
+            );
 
             const label = svg
                 .append("g")

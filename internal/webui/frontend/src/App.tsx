@@ -26,6 +26,22 @@ function pathOf(node: SBNode): string[] {
         .map((a) => a.data.name);
 }
 
+// openLink fills a file manager link template for a node. Files and the
+// "N more items" bucket aren't folders, so they open their parent folder.
+function openLink(template: string, vol: string, node: SBNode): string {
+    const folder = node.data.dir || !node.parent ? node : (node.parent as SBNode);
+    const path = pathOf(folder).map(encodeURIComponent).join("/");
+    return template
+        .replaceAll("{vol}", encodeURIComponent(vol))
+        .replaceAll("{path}", path);
+}
+
+interface Menu {
+    x: number;
+    y: number;
+    node: SBNode;
+}
+
 export function App() {
     const [volumes, setVolumes] = useState<VolumeInfo[]>([]);
     const [vol, setVol] = useState<string>("");
@@ -37,6 +53,7 @@ export function App() {
     const [error, setError] = useState<string | null>(null);
     const [folderBusy, setFolderBusy] = useState(false);
     const [folderMsg, setFolderMsg] = useState<string | null>(null);
+    const [menu, setMenu] = useState<Menu | null>(null);
     const sunRef = useRef<SunburstHandle>(null);
 
     const load = useCallback(async (volId: string) => {
@@ -74,6 +91,7 @@ export function App() {
             setHover(null);
             setTree(null);
             setFolderMsg(null);
+            setMenu(null);
             void load(id);
         },
         [vol, load],
@@ -136,6 +154,35 @@ export function App() {
             setFolderBusy(false);
         }
     }, [vol, focusPath, onScan]);
+
+    const openTemplate = volumes.find((v) => v.id === vol)?.openUrl;
+
+    // Right-click opens our menu only when a file manager is configured;
+    // otherwise the browser's own menu shows as before.
+    const onContextMenu = useCallback(
+        (node: SBNode, e: { clientX: number; clientY: number; preventDefault(): void }) => {
+            if (!openTemplate) return;
+            e.preventDefault();
+            setMenu({ x: e.clientX, y: e.clientY, node });
+        },
+        [openTemplate],
+    );
+
+    useEffect(() => {
+        if (!menu) return;
+        const close = () => setMenu(null);
+        const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+        window.addEventListener("click", close);
+        window.addEventListener("keydown", onKey);
+        window.addEventListener("resize", close);
+        window.addEventListener("scroll", close, true);
+        return () => {
+            window.removeEventListener("click", close);
+            window.removeEventListener("keydown", onKey);
+            window.removeEventListener("resize", close);
+            window.removeEventListener("scroll", close, true);
+        };
+    }, [menu]);
 
     const total = tree?.size ?? 0;
     const detail = hover ?? focus;
@@ -244,6 +291,7 @@ export function App() {
                             onHover={onHover}
                             onFocus={onFocus}
                             focusPath={focusPath}
+                            onContextMenu={onContextMenu}
                         />
                         <div className="readout">
                             <span className="readout-name">
@@ -303,6 +351,16 @@ export function App() {
                                     )}
                                 </button>
                             )}
+                            {openTemplate && (
+                                <a
+                                    className="rescan-folder open-folder"
+                                    href={openLink(openTemplate, vol, focus)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    open in file manager
+                                </a>
+                            )}
                             {folderMsg && (
                                 <div className="insp-msg">{folderMsg}</div>
                             )}
@@ -326,6 +384,9 @@ export function App() {
                                             className="row"
                                             onMouseEnter={() => setHover(c)}
                                             onMouseLeave={() => setHover(null)}
+                                            onContextMenu={(e) =>
+                                                onContextMenu(c, e)
+                                            }
                                             onClick={() =>
                                                 c.children &&
                                                 sunRef.current?.focusTo(c)
@@ -382,6 +443,32 @@ export function App() {
                     </div>
                 )}
             </aside>
+
+            {menu && openTemplate && (
+                <div
+                    className="ctx-menu"
+                    role="menu"
+                    // keep it on-screen near the right/bottom edges
+                    style={{
+                        left: Math.min(menu.x, window.innerWidth - 360),
+                        top: Math.min(menu.y, window.innerHeight - 90),
+                    }}
+                >
+                    <a
+                        role="menuitem"
+                        href={openLink(openTemplate, vol, menu.node)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        open in file manager
+                    </a>
+                    <span className="ctx-path">
+                        {menu.node.data.dir || !menu.node.parent
+                            ? menu.node.data.name
+                            : `${menu.node.parent.data.name} (folder)`}
+                    </span>
+                </div>
+            )}
         </div>
     );
 }

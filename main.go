@@ -75,6 +75,24 @@ func envList(key string, def []string) []string {
 	return out
 }
 
+// openURL returns the file manager link template for a volume: OPEN_URL_<ID>
+// (id upper-cased, other characters as "_") wins over the shared OPEN_URL, so
+// volumes whose file manager names differ from their ids can still be mapped.
+func openURL(id string) string {
+	key := "OPEN_URL_" + strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z':
+			return r - 'a' + 'A'
+		case r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			return r
+		default:
+			return '_'
+		}
+	}, id)
+
+	return env(key, os.Getenv("OPEN_URL"))
+}
+
 // volumeSet adapts *scan.Manager to webui.VolumeSet (whose Scanner returns the
 // webui.Scanner interface rather than the concrete *scan.Scanner).
 type volumeSet struct{ m *scan.Manager }
@@ -115,6 +133,7 @@ func loadOptions(logger *slog.Logger) []scan.Options {
 			o.ID = filepath.Base(root)
 			o.DisplayRoot = "/" + o.ID
 			o.CachePath = filepath.Join(cacheDir, o.ID+".json.gz")
+			o.OpenURL = openURL(o.ID)
 			optsList = append(optsList, o)
 		}
 	} else {
@@ -122,6 +141,7 @@ func loadOptions(logger *slog.Logger) []scan.Options {
 		o.Root = env("SCAN_ROOT", "/data")
 		o.DisplayRoot = env("DISPLAY_ROOT", "")
 		o.CachePath = env("CACHE_PATH", filepath.Join(cacheDir, "tree.json.gz"))
+		o.OpenURL = os.Getenv("OPEN_URL")
 		optsList = append(optsList, o)
 	}
 

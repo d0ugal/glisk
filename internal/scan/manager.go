@@ -7,9 +7,10 @@ import (
 
 // VolumeInfo is the per-volume summary used to populate the UI's path switcher.
 type VolumeInfo struct {
-	ID     string `json:"id"`
-	Label  string `json:"label"`
-	Status Status `json:"status"`
+	ID      string `json:"id"`
+	Label   string `json:"label"`
+	OpenURL string `json:"openUrl,omitempty"`
+	Status  Status `json:"status"`
 }
 
 // Manager owns one Scanner per configured volume and shares a single scan gate
@@ -46,7 +47,7 @@ func (m *Manager) Start(ctx context.Context) {
 func (m *Manager) Volumes() []VolumeInfo {
 	out := make([]VolumeInfo, 0, len(m.order))
 	for _, s := range m.order {
-		out = append(out, VolumeInfo{ID: s.ID(), Label: s.Label(), Status: s.Status()})
+		out = append(out, VolumeInfo{ID: s.ID(), Label: s.Label(), OpenURL: s.opts.OpenURL, Status: s.Status()})
 	}
 
 	return out

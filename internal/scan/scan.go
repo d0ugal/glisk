@@ -59,7 +59,10 @@ type Options struct {
 	ID          string // stable identifier for this volume (e.g. "volume1")
 	Root        string // path actually walked (e.g. /data)
 	DisplayRoot string // label shown at the centre (e.g. /volume1)
-	CachePath   string // gzipped-JSON cache file; "" disables persistence
+	// OpenURL is a web file manager link template for the UI's "open in file
+	// manager" action, with {vol} and {path} placeholders. "" hides the action.
+	OpenURL   string
+	CachePath string // gzipped-JSON cache file; "" disables persistence
 	// ScanGate, when shared across scanners, serialises their walks so two
 	// nightly scans don't run at once and double the peak memory.
 	ScanGate    *sync.Mutex
