@@ -205,6 +205,13 @@ export function App() {
             </header>
 
             <main className="stage-wrap">
+                {status?.diskTotal ? (
+                    <Capacity
+                        total={status.diskTotal}
+                        free={status.diskFree ?? 0}
+                        mapped={total}
+                    />
+                ) : null}
                 <nav className="breadcrumb" aria-label="path">
                     {focus &&
                         focus
@@ -399,6 +406,53 @@ function Meter({
         <div className="meter" title={title}>
             <span className="meter-value">{value}</span>
             <span className="meter-label">{label}</span>
+        </div>
+    );
+}
+
+// "other" is used space the scan didn't map: files outside the root, excluded
+// or unreadable folders, snapshots, filesystem overhead.
+function Capacity({
+    total,
+    free,
+    mapped,
+}: {
+    total: number;
+    free: number;
+    mapped: number;
+}) {
+    const used = Math.max(0, total - free);
+    const shown = Math.min(mapped, used);
+    const other = used - shown;
+    const pct = (n: number) => `${((n / total) * 100).toFixed(2)}%`;
+    const full = used / total;
+    const level = full >= 0.95 ? "crit" : full >= 0.9 ? "warn" : "";
+
+    return (
+        <div className={`capacity ${level}`}>
+            <div
+                className="cap-bar"
+                role="meter"
+                aria-label="disk usage"
+                aria-valuemin={0}
+                aria-valuemax={total}
+                aria-valuenow={used}
+            >
+                <span className="cap-mapped" style={{ width: pct(shown) }} />
+                <span className="cap-other" style={{ width: pct(other) }} />
+            </div>
+            <div className="cap-legend">
+                <span>
+                    <i className="cap-mapped" /> mapped {formatBytes(shown)}
+                </span>
+                <span>
+                    <i className="cap-other" /> other {formatBytes(other)}
+                </span>
+                <span className="cap-free">
+                    <i /> free {formatBytes(free)} of {formatBytes(total)} ·{" "}
+                    {formatPercent(free, total)}
+                </span>
+            </div>
         </div>
     );
 }

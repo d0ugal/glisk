@@ -16,6 +16,8 @@ export interface Status {
     nextScanUnix: number;
     progress: number;
     root: string;
+    diskTotal?: number;
+    diskFree?: number;
     error?: string;
 }
 

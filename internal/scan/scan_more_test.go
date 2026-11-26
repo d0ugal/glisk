@@ -255,3 +255,10 @@ func TestExcludedMatchesAnyGlob(t *testing.T) {
 		}
 	}
 }
+
+func TestStatusReportsDiskSpace(t *testing.T) {
+	st := New(Options{Root: t.TempDir()}).Status()
+	if st.DiskTotal == 0 || st.DiskFree > st.DiskTotal {
+		t.Errorf("disk space = %d free of %d", st.DiskFree, st.DiskTotal)
+	}
+}

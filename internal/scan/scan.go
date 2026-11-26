@@ -45,6 +45,8 @@ type Status struct {
 	NextScanUnix int64   `json:"nextScanUnix"`
 	Progress     int64   `json:"progress"`
 	Root         string  `json:"root"`
+	DiskTotal    uint64  `json:"diskTotal,omitempty"` // filesystem size, read live
+	DiskFree     uint64  `json:"diskFree,omitempty"`  // space available to non-root users
 	Error        string  `json:"error,omitempty"`
 }
 
@@ -178,6 +180,13 @@ func (s *Scanner) Status() Status {
 
 	st.ID = s.opts.ID
 	st.Root = s.opts.DisplayRoot
+
+	var fsStat syscall.Statfs_t
+	if err := syscall.Statfs(s.opts.Root, &fsStat); err == nil {
+		bsize := uint64(fsStat.Bsize) //nolint:gosec // block size is never negative
+		st.DiskTotal = fsStat.Blocks * bsize
+		st.DiskFree = fsStat.Bavail * bsize
+	}
 
 	st.NextScanUnix = s.nextScanUnix.Load()
 	if s.scanning.Load() {
