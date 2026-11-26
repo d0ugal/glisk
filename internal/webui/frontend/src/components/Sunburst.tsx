@@ -5,6 +5,8 @@ import {
     useRef,
 } from "react";
 import * as d3 from "d3";
+// d3 is sideEffects:false, so the bundler drops d3-transition's patch without this.
+import "d3-transition";
 import type { TreeNode } from "../types";
 
 // Arc coordinates we animate between (a mutable copy of the partition layout).
@@ -24,6 +26,7 @@ export type SBNode = d3.HierarchyRectangularNode<TreeNode> & {
 
 export interface SunburstHandle {
     focusTo: (node: SBNode) => void;
+    focusToPath: (segments: string[]) => void;
 }
 
 interface SunburstProps {
@@ -36,13 +39,13 @@ interface SunburstProps {
     focusPath?: string[];
 }
 
-// nodeByPath descends the hierarchy following folder names.
-function nodeByPath(root: SBNode, segments: string[]): SBNode | null {
+// nodeByPath descends by folder name, stopping at the deepest that exists.
+function nodeByPath(root: SBNode, segments: string[]): SBNode {
     let cur: SBNode = root;
     for (const seg of segments) {
         const kids = (cur.children ?? []) as SBNode[];
         const next = kids.find((c) => c.data.name === seg);
-        if (!next) return null;
+        if (!next) break;
         cur = next;
     }
     return cur;
@@ -87,8 +90,14 @@ export const Sunburst = forwardRef<SunburstHandle, SunburstProps>(
         const focusPathRef = useRef(focusPath);
         focusPathRef.current = focusPath;
 
+        const rootRef = useRef<SBNode | null>(null);
+
         useImperativeHandle(ref, () => ({
             focusTo: (node: SBNode) => zoomRef.current(node),
+            focusToPath: (segments: string[]) => {
+                if (rootRef.current)
+                    zoomRef.current(nodeByPath(rootRef.current, segments));
+            },
         }));
 
         useEffect(() => {
@@ -343,14 +352,14 @@ export const Sunburst = forwardRef<SunburstHandle, SunburstProps>(
             }
 
             zoomRef.current = zoom;
+            rootRef.current = root;
             onFocus(root);
             onHover(null);
 
             // Restore the previously-viewed folder after an in-place rebuild.
             const restore = focusPathRef.current;
             if (restore && restore.length) {
-                const target = nodeByPath(root, restore);
-                if (target) zoom(target, false);
+                zoom(nodeByPath(root, restore), false);
             }
 
             return () => {

@@ -26,6 +26,24 @@ function pathOf(node: SBNode): string[] {
         .map((a) => a.data.name);
 }
 
+// URL fragment: #<vol>/<seg>/<seg>
+function readHash(): { vol: string; path: string[] } {
+    try {
+        const [vol = "", ...path] = location.hash
+            .slice(1)
+            .split("/")
+            .filter(Boolean)
+            .map(decodeURIComponent);
+        return { vol, path };
+    } catch {
+        return { vol: "", path: [] }; // malformed %-escape
+    }
+}
+
+function toHash(vol: string, path: string[]): string {
+    return "#" + [vol, ...path].map(encodeURIComponent).join("/");
+}
+
 export function App() {
     const [volumes, setVolumes] = useState<VolumeInfo[]>([]);
     const [vol, setVol] = useState<string>("");
@@ -56,8 +74,11 @@ export function App() {
             try {
                 const vs = await fetchVolumes();
                 setVolumes(vs);
-                const first = vs[0]?.id ?? "";
+                const h = readHash();
+                const known = vs.some((v) => v.id === h.vol);
+                const first = known ? h.vol : (vs[0]?.id ?? "");
                 setVol(first);
+                if (known) setFocusPath(h.path);
                 if (first) await load(first);
             } catch (e) {
                 setError(String(e));
@@ -66,11 +87,11 @@ export function App() {
     }, [load]);
 
     const switchVol = useCallback(
-        (id: string) => {
+        (id: string, path: string[] = []) => {
             if (id === vol) return;
             setVol(id);
             setFocus(null);
-            setFocusPath([]);
+            setFocusPath(path);
             setHover(null);
             setTree(null);
             setFolderMsg(null);
@@ -78,6 +99,28 @@ export function App() {
         },
         [vol, load],
     );
+
+    // The first entry replaces, so Back from it leaves glisk.
+    useEffect(() => {
+        if (!vol) return;
+        const h = toHash(vol, focusPath);
+        if (location.hash === h) return;
+        if (location.hash) history.pushState(null, "", h);
+        else history.replaceState(null, "", h);
+    }, [vol, focusPath]);
+
+    useEffect(() => {
+        const onPop = () => {
+            const h = readHash();
+            if (h.vol && h.vol !== vol && volumes.some((v) => v.id === h.vol)) {
+                switchVol(h.vol, h.path);
+            } else {
+                sunRef.current?.focusToPath(h.path);
+            }
+        };
+        window.addEventListener("popstate", onPop);
+        return () => window.removeEventListener("popstate", onPop);
+    }, [vol, volumes, switchVol]);
 
     // While a full scan runs, poll status; refresh the tree once it finishes.
     const scanning = status?.scanning ?? false;
