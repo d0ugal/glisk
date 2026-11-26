@@ -14,6 +14,7 @@ import {
     formatRelative,
 } from "./format";
 import { Sunburst, type SBNode, type SunburstHandle } from "./components/Sunburst";
+import { Treemap } from "./components/Treemap";
 import type { Status, TreeNode, VolumeInfo } from "./types";
 
 // pathOf returns the folder names from the root down to (and including) a node,
@@ -24,6 +25,16 @@ function pathOf(node: SBNode): string[] {
         .reverse()
         .slice(1)
         .map((a) => a.data.name);
+}
+
+type View = "sunburst" | "treemap";
+
+function savedView(): View {
+    try {
+        return localStorage.getItem("glisk.view") === "treemap" ? "treemap" : "sunburst";
+    } catch {
+        return "sunburst";
+    }
 }
 
 export function App() {
@@ -37,7 +48,18 @@ export function App() {
     const [error, setError] = useState<string | null>(null);
     const [folderBusy, setFolderBusy] = useState(false);
     const [folderMsg, setFolderMsg] = useState<string | null>(null);
+    const [view, setView] = useState<View>(savedView);
     const sunRef = useRef<SunburstHandle>(null);
+
+    const switchView = useCallback((v: View) => {
+        setView(v);
+        setHover(null);
+        try {
+            localStorage.setItem("glisk.view", v);
+        } catch {
+            /* storage blocked */
+        }
+    }, []);
 
     const load = useCallback(async (volId: string) => {
         try {
@@ -205,6 +227,19 @@ export function App() {
             </header>
 
             <main className="stage-wrap">
+                <div className="view-switch vol-switch" role="tablist" aria-label="chart">
+                    {(["sunburst", "treemap"] as const).map((v) => (
+                        <button
+                            key={v}
+                            role="tab"
+                            aria-selected={view === v}
+                            className={view === v ? "active" : ""}
+                            onClick={() => switchView(v)}
+                        >
+                            {v}
+                        </button>
+                    ))}
+                </div>
                 <nav className="breadcrumb" aria-label="path">
                     {focus &&
                         focus
@@ -237,14 +272,24 @@ export function App() {
                 {!tree && scanning && <Scanning progress={status?.progress ?? 0} />}
 
                 {tree && (
-                    <div className="stage">
-                        <Sunburst
-                            ref={sunRef}
-                            data={tree}
-                            onHover={onHover}
-                            onFocus={onFocus}
-                            focusPath={focusPath}
-                        />
+                    <div className={view === "treemap" ? "stage tm" : "stage"}>
+                        {view === "treemap" ? (
+                            <Treemap
+                                ref={sunRef}
+                                data={tree}
+                                onHover={onHover}
+                                onFocus={onFocus}
+                                focusPath={focusPath}
+                            />
+                        ) : (
+                            <Sunburst
+                                ref={sunRef}
+                                data={tree}
+                                onHover={onHover}
+                                onFocus={onFocus}
+                                focusPath={focusPath}
+                            />
+                        )}
                         <div className="readout">
                             <span className="readout-name">
                                 {detail ? detail.data.name : tree.name}
@@ -366,7 +411,11 @@ export function App() {
                 ) : (
                     <div className="insp-hint">
                         <p>Hover a segment to inspect it.</p>
-                        <p>Click to dive in · click the centre to climb out.</p>
+                        <p>
+                            {view === "treemap"
+                                ? "Click a box to dive in · click the background to climb out."
+                                : "Click to dive in · click the centre to climb out."}
+                        </p>
                     </div>
                 )}
 

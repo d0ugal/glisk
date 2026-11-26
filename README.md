@@ -15,6 +15,9 @@ Go backend, React + d3 frontend, shipped as a single small container.
 - **Zoomable sunburst** — click a wedge to dive in, click the centre to climb
   out, with a fluid "jelly" transition. Each top-level folder owns a hue and
   its descendants are tints of it.
+- **Treemap view** — switch to a zoomable treemap, where box area is
+  proportional to size at every depth. Click a box to dive in, click the
+  background to climb out. The choice is remembered in the browser.
 - **Multiple volumes** — map several roots, each its own sunburst, with a path
   switcher. Their scans are serialised so they stay light on the host.
 - **Gentle scanning** — the walk runs once overnight on a single low-priority

@@ -5,6 +5,8 @@ import {
     useRef,
 } from "react";
 import * as d3 from "d3";
+// d3 is sideEffects:false, so the bundler drops d3-transition's patch without this.
+import "d3-transition";
 import type { TreeNode } from "../types";
 
 // Arc coordinates we animate between (a mutable copy of the partition layout).
@@ -37,7 +39,7 @@ interface SunburstProps {
 }
 
 // nodeByPath descends the hierarchy following folder names.
-function nodeByPath(root: SBNode, segments: string[]): SBNode | null {
+export function nodeByPath(root: SBNode, segments: string[]): SBNode | null {
     let cur: SBNode = root;
     for (const seg of segments) {
         const kids = (cur.children ?? []) as SBNode[];
@@ -55,7 +57,7 @@ const radius = SIZE / 2 / (RINGS + 1);
 // DaisyDisk's signature: every top-level folder owns a hue and its descendants
 // are tints of that hue, with a little sibling spread so adjacent arcs read
 // as distinct rather than one flat band.
-function paintTree(root: SBNode) {
+export function paintTree(root: SBNode) {
     const tops = (root.children ?? []) as SBNode[];
     tops.forEach((top, i) => {
         const hue = ((i + 0.5) / Math.max(tops.length, 1)) * 360;
