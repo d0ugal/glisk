@@ -255,3 +255,29 @@ func TestExcludedMatchesAnyGlob(t *testing.T) {
 		}
 	}
 }
+
+func TestHardLinksCountedOnce(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"a", "b"} {
+		if err := os.Mkdir(filepath.Join(root, d), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := os.WriteFile(filepath.Join(root, "a", "f"), make([]byte, 100), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Link(filepath.Join(root, "a", "f"), filepath.Join(root, "b", "f")); err != nil {
+		t.Skip("hard links unsupported:", err)
+	}
+
+	raw, files, _, err := New(Options{Root: root}).buildRawAt(context.Background(), root, "/v", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := computeSize(raw); got != 100 || files != 2 {
+		t.Errorf("size = %d, files = %d; want 100, 2", got, files)
+	}
+}

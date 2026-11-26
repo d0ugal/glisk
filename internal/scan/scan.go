@@ -333,6 +333,8 @@ func (s *Scanner) buildRawAt(ctx context.Context, fsRoot, rootName string, throt
 
 	var count int64
 
+	seen := map[[2]uint64]bool{} // hard-linked files by (dev, inode)
+
 	walkErr = filepath.WalkDir(fsRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // skip unreadable entries, keep going
@@ -377,6 +379,16 @@ func (s *Scanner) buildRawAt(ctx context.Context, fsRoot, rootName string, throt
 				} else {
 					if info, ie := d.Info(); ie == nil {
 						child.size = info.Size()
+
+						// A hard-linked file is one copy on disk; count it at the first path seen.
+						if st, ok := info.Sys().(*syscall.Stat_t); ok && st.Nlink > 1 {
+							key := [2]uint64{uint64(st.Dev), st.Ino}
+							if seen[key] {
+								child.size = 0
+							}
+
+							seen[key] = true
+						}
 					}
 
 					files++
